@@ -1,0 +1,244 @@
+name: Fabric_ContinousDeployment_Pipeline
+
+on:
+  push:
+    branches: [dev, test, prod]
+    paths:
+      - 'fabric/**'
+      - '.deploy/**'
+      - '.github/workflows/deploy-to-fabric.yml'
+  workflow_dispatch:
+    inputs:
+      items_in_scope:
+        description: 'Fabric items to deploy'
+        required: true
+        default: '[Notebook,DataPipeline,Lakehouse,SemanticModel,Report,VariableLibrary,Warehouse,CopyJob]'
+
+env:
+  GITDIRECTORY: fabric
+  ITEMS_IN_SCOPE: >-
+    ${{ github.event.inputs.items_in_scope
+        || '[Notebook,DataPipeline,Lakehouse,SemanticModel,Report,VariableLibrary,Warehouse,CopyJob]' }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Stage 1: DeployToFabric  (equivalent of DevOps stage "DeployToFabric")
+  # -------------------------------------------------------------------------
+  deploy-to-fabric:
+    name: Deploy to Fabric Workspace
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}   # dev / test / prod -> GH Environment
+    env:
+      AZTENANTID: ${{ secrets.AZTENANTID }}
+      AZCLIENTID: ${{ secrets.AZCLIENTID }}
+      AZSPSECRET: ${{ secrets.AZSPSECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install fabric-cicd
+        run: |
+          python -m pip install --upgrade pip
+          pip install fabric-cicd azure-identity requests
+
+      - name: Export workspace-name env var for deploy-to-fabric.py
+        run: |
+          TARGET_ENV="${GITHUB_REF_NAME}"
+          VAR_NAME="$(echo "${TARGET_ENV}WORKSPACENAME" | tr '[:lower:]' '[:upper:]')"
+          echo "${VAR_NAME}=${{ vars.WORKSPACE_NAME }}" >> "$GITHUB_ENV"
+
+      - name: Run fabric-cicd deployment
+        run: |
+          python .deploy/deploy-to-fabric.py \
+            --aztenantid    "$AZTENANTID" \
+            --azclientid    "$AZCLIENTID" \
+            --azspsecret    "$AZSPSECRET" \
+            --target_env    "${GITHUB_REF_NAME}" \
+            --items_in_scope "$ITEMS_IN_SCOPE"
+
+  # -------------------------------------------------------------------------
+  # Stage 2: MainETLRun  (dependsOn: DeployToFabric)
+  # -------------------------------------------------------------------------
+  main-etl-run:
+    name: Run Main ETL Pipeline
+    needs: deploy-to-fabric
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+    env:
+      AZTENANTID: ${{ secrets.AZTENANTID }}
+      AZCLIENTID: ${{ secrets.AZCLIENTID }}
+      AZSPSECRET: ${{ secrets.AZSPSECRET }}
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Fabric CLI
+        run: |
+          python -m pip install --upgrade pip
+          pip install ms-fabric-cli
+
+      - name: Configure Fabric CLI
+        run: fab config set encryption_fallback_enabled true
+
+      - name: Authenticate to Fabric
+        run: fab auth login -u "$AZCLIENTID" -p "$AZSPSECRET" --tenant "$AZTENANTID"
+
+      - name: Run API Ingestion Pipeline
+        run: |
+          WORKSPACE_NAME="${{ vars.WORKSPACE_NAME }}"
+          echo "Workspace: $WORKSPACE_NAME"
+          fab job run "$WORKSPACE_NAME.workspace/API_Ingestion_Pipeline.datapipeline"
+
+  # -------------------------------------------------------------------------
+  # Stage 3: RunSemanticModelConnRepair  (dependsOn: MainETLRun)
+  # -------------------------------------------------------------------------
+  semantic-model-repair:
+    name: Run Semantic Model Conn Repair
+    needs: main-etl-run
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+    env:
+      AZTENANTID: ${{ secrets.AZTENANTID }}
+      AZCLIENTID: ${{ secrets.AZCLIENTID }}
+      AZSPSECRET: ${{ secrets.AZSPSECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install REST API dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install azure-identity requests
+
+      - name: Export workspace-name env var for the script
+        run: |
+          TARGET_ENV="${GITHUB_REF_NAME}"
+          VAR_NAME="$(echo "${TARGET_ENV}WORKSPACENAME" | tr '[:lower:]' '[:upper:]')"
+          echo "${VAR_NAME}=${{ vars.WORKSPACE_NAME }}" >> "$GITHUB_ENV"
+
+      - name: Repair semantic model connections
+        run: |
+          python .deploy/post-deploy-semantic-model-repair.py \
+            --aztenantid     "$AZTENANTID" \
+            --azclientid     "$AZCLIENTID" \
+            --azspsecret     "$AZSPSECRET" \
+            --target_env     "${GITHUB_REF_NAME}" \
+            --target_lakehouse DemoLakehouse
+
+  # -------------------------------------------------------------------------
+  # Stage 4: BuildWHDacpac  (dependsOn: MainETLRun) - Windows agent
+  # -------------------------------------------------------------------------
+ 
+  build-wh-dacpac:
+    name: Build WH SQL Endpoint DACPAC
+    needs: main-etl-run
+    runs-on: windows-latest
+    environment: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Pin SDK to .NET 8 (global.json)
+        shell: pwsh
+        run: |
+          $sdk = (dotnet --list-sdks | Select-String '^8\.' | Select-Object -First 1).ToString().Split(' ')[0]
+          if (-not $sdk) { throw "No .NET 8 SDK found" }
+          Write-Host "Pinning to SDK: $sdk"
+          @{ sdk = @{ version = $sdk; rollForward = "latestFeature" } } |
+            ConvertTo-Json | Set-Content global.json
+          dotnet --version
+
+      - name: Build Warehouse SQL project
+        shell: pwsh
+        env:
+          WHDBName: ${{ vars.WHDBNAME }}
+        run: |
+          $folder = "${env:WHDBName}.Warehouse"
+          Write-Host "Looking for project in folder: $folder"
+          $proj = Get-ChildItem -Recurse -Filter "*.sqlproj" |
+                    Where-Object { $_.Directory.Name -eq $folder } |
+                    Select-Object -First 1 -ExpandProperty FullName
+          if (-not $proj) { throw "Could not locate $folder/*.sqlproj" }
+          Write-Host "Found project: $proj"
+          dotnet build "$proj" -c Release
+
+      - name: Collect WH DACPAC
+        shell: pwsh
+        run: |
+          $stage = "artifact-staging"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Get-ChildItem -Recurse -Filter *.dacpac | Copy-Item -Destination $stage
+
+      - name: Publish WH DACPAC artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wh-drop
+          path: artifact-staging/**/*.dacpac
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------------
+  # Stage 5: WHDeploy  (dependsOn: BuildWHDacpac) - deploy job on wh-sql-gateway
+  # -------------------------------------------------------------------------
+  wh-deploy:
+    name: Deploy DACPAC to Fabric Warehouse SQL Endpoint
+    needs: build-wh-dacpac
+    runs-on: windows-latest
+    environment: ${{ github.ref_name }}
+    env:
+      AZTENANTID:      ${{ secrets.AZTENANTID }}
+      AZCLIENTID:      ${{ secrets.AZCLIENTID }}
+      AZSPSECRET:      ${{ secrets.AZSPSECRET }}
+      SQLENDPOINTCONN: ${{ secrets.SQLENDPOINTCONN }}
+      WHDBName:        ${{ vars.WHDBNAME }}
+    steps:
+      - name: Download WH DACPAC artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wh-drop
+          path: wh-drop
+
+      - name: Publish DACPAC with SqlPackage
+        shell: pwsh
+        run: |
+          az login --service-principal `
+            -u "$env:AZCLIENTID" `
+            -p "$env:AZSPSECRET" `
+            --tenant "$env:AZTENANTID"
+
+          dotnet tool install -g Microsoft.sqlpackage --version 162.*
+
+          $dacpac = Get-ChildItem "wh-drop" -Recurse -Filter "$($env:WHDBName)*.dacpac" |
+                      Select-Object -First 1 -ExpandProperty FullName
+          if (-not $dacpac) { throw "WH DACPAC not found" }
+
+          $token = az account get-access-token `
+            --resource https://database.windows.net/ `
+            --query accessToken -o tsv
+
+          & "$env:USERPROFILE\.dotnet\tools\sqlpackage.exe" `
+            /Action:Publish `
+            /SourceFile:"$dacpac" `
+            /TargetServerName:"$env:SQLENDPOINTCONN" `
+            /TargetDatabaseName:"$env:WHDBName" `
+            /AccessToken:"$token" `
+            /p:VerifyDeployment=False `
+            /p:BlockOnPossibleDataLoss=False `
+            /p:AllowIncompatiblePlatform=True
