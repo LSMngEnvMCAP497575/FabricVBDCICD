@@ -7,14 +7,14 @@
           "notebookId": "368e778e-6665-899c-406f-f52845e91f70",
           "workspaceId": "00000000-0000-0000-0000-000000000000",
           "parameters": {
-            "TargetLakehouseid": {
+            "TargetLakehouseId": {
               "value": {
                 "value": "@pipeline().libraryVariables.Demo_VL_Parameter_LakehouseID",
                 "type": "Expression"
               },
               "type": "string"
             },
-            "TargetWorkspacceid": {
+            "TargetWorkspaceId": {
               "value": {
                 "value": "@pipeline().libraryVariables.Demo_VL_Parameter_WorkspaceID",
                 "type": "Expression"
