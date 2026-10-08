@@ -1,0 +1,104 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "368e778e-6665-899c-406f-f52845e91f70",
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "parameters": {
+            "TargetLakehouseId": {
+              "value": {
+                "value": "@pipeline().libraryVariables.Demo_VL_Parameter_LakehouseID",
+                "type": "Expression"
+              },
+              "type": "string"
+            },
+            "TargetWorkspaceId": {
+              "value": {
+                "value": "@pipeline().libraryVariables.Demo_VL_Parameter_WorkspaceID",
+                "type": "Expression"
+              },
+              "type": "string"
+            }
+          }
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "RunIngestionNotebook",
+        "dependsOn": []
+      },
+      {
+        "type": "SetVariable",
+        "typeProperties": {
+          "variableName": "LakehouseID",
+          "value": {
+            "value": "@pipeline().libraryVariables.Demo_VL_Parameter_LakehouseID",
+            "type": "Expression"
+          }
+        },
+        "policy": {
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Set variable1",
+        "dependsOn": [
+          {
+            "activity": "RunIngestionNotebook",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "SetVariable",
+        "typeProperties": {
+          "variableName": "WorkspaceID",
+          "value": {
+            "value": "@pipeline().libraryVariables.Demo_VL_Parameter_WorkspaceID",
+            "type": "Expression"
+          }
+        },
+        "policy": {
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Set variable1_copy1",
+        "dependsOn": [
+          {
+            "activity": "RunIngestionNotebook",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      }
+    ],
+    "libraryVariables": {
+      "Demo_VL_Parameter_LakehouseID": {
+        "type": "String",
+        "variableName": "LakehouseID",
+        "libraryName": "Demo_VL_Parameter"
+      },
+      "Demo_VL_Parameter_WorkspaceID": {
+        "type": "String",
+        "variableName": "WorkspaceID",
+        "libraryName": "Demo_VL_Parameter"
+      }
+    },
+    "variables": {
+      "LakehouseID": {
+        "type": "String"
+      },
+      "WorkspaceID": {
+        "type": "String"
+      }
+    }
+  }
+}
