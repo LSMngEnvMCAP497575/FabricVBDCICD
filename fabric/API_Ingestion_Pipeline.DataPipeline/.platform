@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "DataPipeline",
+    "displayName": "API_Ingestion_Pipeline",
+    "description": "Runs the ingestion notebook"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "08089b8b-e50c-9c95-4bb3-4e7239e22726"
+  }
+}

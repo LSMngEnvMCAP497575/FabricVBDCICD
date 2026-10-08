@@ -1,0 +1,47 @@
+table countries
+	lineageTag: 00d14626-a1ea-488b-ad3e-cddd380a35b8
+	sourceLineageTag: [dbo].[countries]
+
+	column _corrupt_record
+		dataType: string
+		lineageTag: eaaa5464-1868-4c2d-b090-6a821bdb2de1
+		sourceLineageTag: _corrupt_record
+		summarizeBy: none
+		sourceColumn: _corrupt_record
+
+		annotation SummarizationSetBy = Automatic
+
+	column city
+		dataType: string
+		lineageTag: c21d770a-a38c-47ca-a8b1-43373beea8da
+		sourceLineageTag: city
+		summarizeBy: none
+		sourceColumn: city
+
+		annotation SummarizationSetBy = Automatic
+
+	column country
+		dataType: string
+		lineageTag: d090d380-1e49-45f8-b6dd-d4a5f966ba65
+		sourceLineageTag: country
+		summarizeBy: none
+		sourceColumn: country
+
+		annotation SummarizationSetBy = Automatic
+
+	column population
+		dataType: string
+		lineageTag: ef94c2d8-e0e7-49b5-b9a3-eeb1a61b2bb1
+		sourceLineageTag: population
+		summarizeBy: none
+		sourceColumn: population
+
+		annotation SummarizationSetBy = Automatic
+
+	partition countries = entity
+		mode: directLake
+		source
+			entityName: countries
+			schemaName: dbo
+			expressionSource: 'DirectLake - DemoLakehouse'
+
