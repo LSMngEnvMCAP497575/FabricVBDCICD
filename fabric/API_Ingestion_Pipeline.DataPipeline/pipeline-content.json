@@ -32,6 +32,52 @@
         },
         "name": "RunIngestionNotebook",
         "dependsOn": []
+      },
+      {
+        "type": "SetVariable",
+        "typeProperties": {
+          "variableName": "LakehouseID",
+          "value": {
+            "value": "@pipeline().libraryVariables.Demo_VL_Parameter_LakehouseID",
+            "type": "Expression"
+          }
+        },
+        "policy": {
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Set variable1",
+        "dependsOn": [
+          {
+            "activity": "RunIngestionNotebook",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "SetVariable",
+        "typeProperties": {
+          "variableName": "WorkspaceID",
+          "value": {
+            "value": "@pipeline().libraryVariables.Demo_VL_Parameter_WorkspaceID",
+            "type": "Expression"
+          }
+        },
+        "policy": {
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Set variable1_copy1",
+        "dependsOn": [
+          {
+            "activity": "RunIngestionNotebook",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
       }
     ],
     "libraryVariables": {
@@ -44,6 +90,14 @@
         "type": "String",
         "variableName": "WorkspaceID",
         "libraryName": "Demo_VL_Parameter"
+      }
+    },
+    "variables": {
+      "LakehouseID": {
+        "type": "String"
+      },
+      "WorkspaceID": {
+        "type": "String"
       }
     }
   }
