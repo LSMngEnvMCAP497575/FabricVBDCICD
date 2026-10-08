@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "IngestAPIData",
+    "description": "Public API → Lakehouse Delta (shell)"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "368e778e-6665-899c-406f-f52845e91f70"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/variableLibrary/definition/variables/1.0.0/schema.json",
+  "variables": [
+    {
+      "name": "WarehouseID",
+      "note": "",
+      "type": "Guid",
+      "value": "5ed70042-a7d4-4207-995f-d7ccc16f25ba"
+    },
+    {
+      "name": "WorkspaceID",
+      "note": "",
+      "type": "Guid",
+      "value": "0abd6452-08cc-4d01-86f1-b5e99f4c4701"
+    },
+    {
+      "name": "LakehouseID",
+      "note": "",
+      "type": "Guid",
+      "value": "23884490-f2f9-449a-8d23-b77b54219534"
+    },
+    {
+      "name": "SQLConnectionEndpoint",
+      "note": "",
+      "type": "String",
+      "value": "il3524qmxezelptaghn7cvgymi-kjsl2cwmbaau3bxrwxuz6tchae.datawarehouse.fabric.microsoft.com"
+    }
+  ]
+}

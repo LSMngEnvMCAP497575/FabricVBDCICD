@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/variableLibrary/definition/valueSet/1.0.0/schema.json",
+  "name": "test",
+  "variableOverrides": [
+    {
+      "name": "WarehouseID",
+      "value": "7a664275-3f52-4050-92b8-c20518c63788"
+    },
+    {
+      "name": "WorkspaceID",
+      "value": "6001b9c3-b401-4f8c-8003-5eefbd992e6d"
+    },
+    {
+      "name": "LakehouseID",
+      "value": "4b2e5feb-3d7a-4fd9-86b1-f6371c68568a"
+    },
+    {
+      "name": "SQLConnectionEndpoint",
+      "value": "il3524qmxezelptaghn7cvgymi-yo4qcyabwsge7aadl3x33gjonu.datawarehouse.fabric.microsoft.com"
+    }
+  ]
+}
